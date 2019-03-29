@@ -1,7 +1,7 @@
 /********************************************/
 /* minimig.sv                               */
 /* MiSTer glue logic                        */
-/* 2017-2019 Sorgelig                       */
+/* 2017,2018 Sorgelig                       */
 /********************************************/
 
 
@@ -97,20 +97,11 @@ module emu
    input         UART_RXD,
    output        UART_TXD,
 	output        UART_DTR,
-	input         UART_DSR,
-
-	// Open-drain User port.
-	// 0 - D+/RX
-	// 1 - D-/TX
-	// 2..5 - USR1..USR4
-	// Set USER_OUT to 1 to read from USER_IN.
-	input   [5:0] USER_IN,
-	output  [5:0] USER_OUT
+	input	        UART_DSR,
+	output		  rst_out
 );
 
-assign USER_OUT = '1;
 assign {DDRAM_CLK, DDRAM_BURSTCNT, DDRAM_ADDR, DDRAM_DIN, DDRAM_BE, DDRAM_RD, DDRAM_WE} = 0;
-
 
 ////////////////////////////////////////
 // internal signals                   //
@@ -281,7 +272,7 @@ sdram_ctrl sdram
 	.sysclk       (clk_114          ),
 	.reset_in     (pll_locked       ),
 	.c_7m         (clk_7            ),
-	.reset_out    (                 ),
+	.reset_out    (rst_out          ),
 
 	.cache_rst    (tg68_rst         ),
 	.cache_inhibit(cache_inhibit    ),
