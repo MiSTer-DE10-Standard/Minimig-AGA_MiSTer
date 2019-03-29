@@ -1,6 +1,6 @@
 # Minimig-AGA_MiSTer
 
-This is a port of the minimig core to the [MiSTer board](https://github.com/MiSTer-devel).
+This is a port of the minimig core to DE10-Standard Board [DE10-Standard board](https://github.com/MiSTer-DE10-Standard/Main_MiSTer/wiki).
 
 [minimig](http://en.wikipedia.org/wiki/Minimig) (short for Mini Amiga) is an open source re-implementation of an Amiga using a field-programmable gate array (FPGA). Original minimig author is Dennis van Weeren.
 
@@ -40,7 +40,7 @@ Positions are saved in the configuration file. Up to 64 different resolutions ca
 
 
 ### Hardware
-To use this minimig core on the MiST board, you will at the minimum need an SD/SDHC card, formatted with the FAT32 filesystem, an USB keyboard and a compatible monitor / TV. Joysticks & mouse can be emulated on the keyboard. You will probably want to attach a set of speakers of headphones, a real Amiga or USB mouse and a real Amiga joystick or an USB gamepad. The MiST board is needed too, of course ;)
+To use this minimig core on the DE10-Standard board, you will at the minimum need an SD/SDHC card, formatted with the FAT32 filesystem, an USB keyboard and a compatible monitor / TV. Joysticks & mouse can be emulated on the keyboard. You will probably want to attach a set of speakers of headphones, a real Amiga or USB mouse and a real Amiga joystick or an USB gamepad. The MiST board is needed too, of course ;)
 
 ### Software
 FPGA core releases can be found [here](http://somuch.guru/minimig/minimig-mist/). The latest release available is *minimig-mist-1_2*. The zip file contains a minimig-mist-1_2.rbf file, which is the FPGA core, and a firmware.upg file, which can be used to upgrade the firmware on the ARM microcontroller (usually, there is no need to upgrade the firmware, unless it is specifically mentioned to do so). Both files should be placed on the root of your SD card. If you want this core to be the default, you need to rename it to *core.rbf*.
@@ -68,27 +68,14 @@ Keyboard special keys:
 
 ## Issues & Bug reports
 
-All issues for this project are tracked on this repository's [Issues page](https://github.com/rkrajnc/minimig-mist/issues).
-
-If you are a Github user, you can report any issues or bugs directly [here](https://github.com/rkrajnc/minimig-mist/issues).
-
-In case you don't have an account, you can use this [link](https://gitreports.com/issue/rkrajnc/minimig-mist).
-
-
-## Development notes
-
-All development on this repository is done on the [dev](https://github.com/rkrajnc/minimig-mist/tree/dev) branch, or a branch forked from dev. Master branch contains only release-ready, stable changes. All stable releases are tagged with a tag minimig-mist-*release_version*.
-
-See Changelog [here](https://raw.githubusercontent.com/rkrajnc/minimig-mist/master/Changelog).
-
-See TODO list [here](https://raw.githubusercontent.com/rkrajnc/minimig-mist/master/TODO).
+This Project is following the main fork Minimig-Aga Core of Mister, updates follows after porting and testing on DE10-Standard board.
 
 
 ## Building Minimig-AGA_MiSTer from sources
 
-* checkout the source using this [link](https://github.com/MiSTer-devel/Minimig-AGA_MiSTer)
+* checkout the source using this [link](https://github.com/MiSTer-DE10-Standard/Minimig-AGA_MiSTer)
 * download / install / build an ARM GCC toolchain (install script [here](http://mist-board.googlecode.com/svn/trunk/tools/install_arm-none-eabi-gcc.sh), or alternatively, download an already build arm-none-eabi-gcc package for you operating system - requires support for ARM7TDMI)
-* download / install [Altera Quartus II](https://dl.altera.com/?edition=web) v16.1
+* download / install [Altera Quartus II](https://dl.altera.com/?edition=web) v17.0
 * if you are using linux and have the $PATH variable properly set up, you can use the Makefile in the root of the project, otherwise build the ARM firmware using your favourite tool / GUI (firmware is in fw/mist), and build the core using Quartus GUI (project file in fpga/mist)
 * place the firmware.upg & minimig-mist.rbf files on the root of your SD card (optionally, rename minimig-mist.rbf to core.rbf to make it the default core)
 * don't forget to place kickstart ROM of your choosing on the root of the SD card (these are still copyrighted, so either copy the ROM from your real Amiga, or buy AmigaForever)
@@ -107,7 +94,9 @@ Some minimig updates are published on the [Minimig Discussion Forum](http://www.
 
 ARM firmware updates and minimig-tc64 port changes by Christian Vogelsang ([minimig_tc64](https://github.com/cnvogelg/minimig_tc64)) and A.M. Robinson ([minimig_tc64](https://github.com/robinsonb5/minimig_tc64)).
 
-MiSTer project by Sorgelig ([MiSTer](https://github.com/MiSTer-devel)).
+Source of this port is MiSTer project by Sorgelig ([MiSTer](https://github.com/MiSTer-devel)).
+
+Ported for DE10-Standard board by modernhackers.com (https://github.com/MiSTer-DE10-Standard/Minimig-AGA_MiSTer)
 
 
 TG68K.C core by Tobias Gubener.
@@ -115,11 +104,13 @@ TG68K.C core by Tobias Gubener.
 
 ## Links & more info
 
-My page [somuch.guru](http://somuch.guru/).
+Somuch Guru [somuch.guru](http://somuch.guru/).
 
 Further info about minimig can be found on the [Minimig Discussion Forum](http://www.minimig.net/).
 
 MiSTer board support & other cores on the [MiSTer Project Page](https://github.com/MiSTer-devel).
+
+DE10-Standard board official vendor page [Tearasic](https://www.terasic.com.tw/cgi-bin/page/archive.pl?Language=English&No=1081).
 
 
 ## License
@@ -129,6 +120,8 @@ Copyright © 2011 - 2016 Rok Krajnc (rok.krajnc@gmail.com)
 Copyright © 2005 - 2015 Dennis van Weeren, Jakub Bednarski, Sascha Boing, A.M. Robinson, Tobias Gubener, Till Harbaum
 
 Copyright © 2017 Sorgelig (mister.devel@gmail.com)
+
+Copyright © 2019 mazsola2k@modernhackers.com / http://www.modernhackers.com
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
