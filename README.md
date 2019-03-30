@@ -121,8 +121,11 @@ DE10-Standard board official vendor page [Terasic](https://www.terasic.com.tw/cg
 ## Youtube Videos about Minimg-AGA core in action with DE10-Standard board
 
 [Superfrog](https://youtu.be/5O-VhoacXCw)
+
 [Lotus 2](https://youtu.be/1ebB6P-3clY)
+
 [Test Drive 2](https://youtu.be/bFGrN7ovLpM)
+
 
 ## License
 
