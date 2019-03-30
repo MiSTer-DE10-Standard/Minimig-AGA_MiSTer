@@ -1,5 +1,9 @@
 # Minimig-AGA_MiSTer
 
+<img width="1277" alt="Minimig-AGA-DE10-Standard" src="https://user-images.githubusercontent.com/48859672/55279847-dab59100-531d-11e9-85ea-fdffbbeaef6c.png">
+
+<img width="1277" alt="Minimig-AGA-DE10-Standard-Superfrog" src="https://user-images.githubusercontent.com/48859672/55279832-94603200-531d-11e9-84e2-f50ccf775756.png">
+
 This is a port of the minimig core to DE10-Standard Board [DE10-Standard board](https://github.com/MiSTer-DE10-Standard/Main_MiSTer/wiki).
 
 [minimig](http://en.wikipedia.org/wiki/Minimig) (short for Mini Amiga) is an open source re-implementation of an Amiga using a field-programmable gate array (FPGA). Original minimig author is Dennis van Weeren.
@@ -112,6 +116,9 @@ MiSTer board support & other cores on the [MiSTer Project Page](https://github.c
 
 DE10-Standard board official vendor page [Tearasic](https://www.terasic.com.tw/cgi-bin/page/archive.pl?Language=English&No=1081).
 
+Youtube Videos about DE10-Standard in action with Minimg-AGA:
+
+[Minimig-AGA on DE10-Standard FPGA](https://youtu.be/5O-VhoacXCw)
 
 ## License
 
