@@ -116,7 +116,7 @@ MiSTer board support & other cores on the [MiSTer Project Page](https://github.c
 
 DE10-Standard board official vendor page [Tearasic](https://www.terasic.com.tw/cgi-bin/page/archive.pl?Language=English&No=1081).
 
-Youtube Videos about DE10-Standard in action with Minimg-AGA:
+## Youtube Videos about Minimg-AGA core in action with DE10-Standard board
 
 [Minimig-AGA on DE10-Standard FPGA](https://youtu.be/5O-VhoacXCw)
 
