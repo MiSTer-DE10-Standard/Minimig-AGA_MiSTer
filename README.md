@@ -108,17 +108,21 @@ TG68K.C core by Tobias Gubener.
 
 ## Links & more info
 
+ModernHackers [http://modernhackers.com](http://modernhackers.com).
+
 Somuch Guru [somuch.guru](http://somuch.guru/).
 
 Further info about minimig can be found on the [Minimig Discussion Forum](http://www.minimig.net/).
 
-MiSTer board support & other cores on the [MiSTer Project Page](https://github.com/MiSTer-devel).
+MiSTer board support & other cores on the [MiSTer DE10-Standard Project Page](https://github.com/MiSTer-DE10-Standard).
 
-DE10-Standard board official vendor page [Tearasic](https://www.terasic.com.tw/cgi-bin/page/archive.pl?Language=English&No=1081).
+DE10-Standard board official vendor page [Terasic](https://www.terasic.com.tw/cgi-bin/page/archive.pl?Language=English&No=1081).
 
 ## Youtube Videos about Minimg-AGA core in action with DE10-Standard board
 
-[Minimig-AGA on DE10-Standard FPGA](https://youtu.be/5O-VhoacXCw)
+[Superfrog](https://youtu.be/5O-VhoacXCw)
+[Lotus 2](https://youtu.be/1ebB6P-3clY)
+[Test Drive 2](https://youtu.be/bFGrN7ovLpM)
 
 ## License
 
