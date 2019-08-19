@@ -1,7 +1,7 @@
 /********************************************/
 /* minimig.sv                               */
 /* MiSTer glue logic                        */
-/* 2017,2018 Sorgelig                       */
+/* 2017-2019 Alexey Melnikov                */
 /********************************************/
 
 
@@ -56,7 +56,6 @@ module emu
    output [15:0] AUDIO_L,
    output [15:0] AUDIO_R,
    output        AUDIO_S, // 1 - signed audio samples, 0 - unsigned
-   input         TAPE_IN,
 
    input         IO_UIO,
    input         IO_FPGA,
@@ -97,18 +96,26 @@ module emu
    input         UART_RXD,
    output        UART_TXD,
 	output        UART_DTR,
-	input	        UART_DSR,
-	output		  rst_out
+	input         UART_DSR,
+
+	// Open-drain User port.
+	// 0 - D+/RX
+	// 1 - D-/TX
+	// 2..5 - USR1..USR4
+	// Set USER_OUT to 1 to read from USER_IN.
+	input   [5:0] USER_IN,
+	output  [5:0] USER_OUT
 );
 
-assign {DDRAM_CLK, DDRAM_BURSTCNT, DDRAM_ADDR, DDRAM_DIN, DDRAM_BE, DDRAM_RD, DDRAM_WE} = 0;
+assign USER_OUT = '1;
+
 
 ////////////////////////////////////////
 // internal signals                   //
 ////////////////////////////////////////
 
 // clock
-wire           clk_114;
+wire           clk_86;
 wire           clk_28;
 wire           pll_locked;
 wire           clk_7;
@@ -136,25 +143,26 @@ wire           tg68_enaWR;
 wire [ 16-1:0] tg68_cout;
 wire           tg68_cpuena;
 wire [  4-1:0] cpu_config;
-wire [  6-1:0] memcfg;
+wire [  7-1:0] memcfg;
 wire           turbochipram;
 wire           turbokick;
+wire           bootrom;   
 wire           cache_inhibit;
 wire [ 32-1:0] tg68_cad;
-wire [  6-1:0] tg68_cpustate;
+wire [    1:0] tg68_cpustate;
+wire           tg68_ramcs;
 wire           tg68_nrst_out;
-wire           tg68_cdma;
 wire           tg68_clds;
 wire           tg68_cuds;
 wire [  4-1:0] tg68_CACR_out;
 wire [ 32-1:0] tg68_VBR_out;
-wire           tg68_ovr;
+//wire           tg68_ovr;
 
 // minimig
 wire [ 16-1:0] ram_data;      // sram data bus
 wire [ 16-1:0] ramdata_in;    // sram data bus in
 wire [ 48-1:0] chip48;        // big chip read
-wire [ 22-1:1] ram_address;   // sram address bus
+wire [ 24-1:1] ram_address;   // sram address bus
 wire           _ram_bhe;      // sram upper byte select
 wire           _ram_ble;      // sram lower byte select
 wire           _ram_we;       // sram write enable
@@ -176,6 +184,7 @@ wire [  2-1:0] kbd_mouse_type;
 wire [  3-1:0] mouse_buttons;
 wire [  4-1:0] core_config;
 wire [   63:0] rtc;
+
 
 
 ////////////////////////////////////////
@@ -211,8 +220,8 @@ amiga_clk amiga_clk
 (
 	.rst          (0                ), // async reset input
 	.clk_in       (CLK_50M          ), // input clock     ( 50.000000MHz)
-	.clk_114      (clk_114          ), // output clock c0 (114.750000MHz)
-	.clk_sdram    (SDRAM_CLK        ), // output clock c2 (114.750000MHz, -146.25 deg)
+	.clk_86       (clk_86           ), // output clock c0 (86.0625000MHz)
+	.clk_sdram    (SDRAM_CLK        ), // output clock c2 (86.0625000MHz, shifted)
 	.clk_28       (clk_28           ), // output clock c1 ( 28.687500MHz)
 	.clk_7        (clk_7            ), // output clock 7  (  7.171875MHz) DO NOT USE IT AS A CLOCK!
 	.clk7_en      (clk7_en          ), // output clock 7 enable (on 28MHz clock domain)
@@ -224,16 +233,16 @@ amiga_clk amiga_clk
 	.locked       (pll_locked       )  // pll locked output
 );
 
+wire DDR_EN = tg68_cad[28];
+wire SDR_EN = ~tg68_cad[28];
 
 TG68K tg68k
 (
-	.clk          (clk_114          ),
+	.clk          (clk_86           ),
 	.reset        (tg68_rst         ),
 	.clkena_in    (1'b1             ),
 	.IPL          (tg68_IPL         ),
 	.dtack        (tg68_dtack       ),
-	.vpa          (1'b1             ),
-	.ein          (1'b1             ),
 	.addr         (tg68_adr         ),
 	.data_read    (tg68_dat_in      ),
 	.data_write   (tg68_dat_out     ),
@@ -241,9 +250,6 @@ TG68K tg68k
 	.uds          (tg68_uds         ),
 	.lds          (tg68_lds         ),
 	.rw           (tg68_rw          ),
-	.e            (                 ),
-	.vma          (                 ),
-	.wrd          (                 ),
 	.ena7RDreg    (tg68_ena7RD      ),
 	.ena7WRreg    (tg68_ena7WR      ),
 	.enaWRreg     (tg68_enaWR       ),
@@ -253,13 +259,15 @@ TG68K tg68k
 	.turbochipram (turbochipram     ),
 	.turbokick    (turbokick        ),
 	.cache_inhibit(cache_inhibit    ),
-	.fastramcfg   ({&memcfg[5:4],memcfg[5:4]}),
-	.ovr          (tg68_ovr         ),
+	.fastramcfg   (memcfg[6:4]      ),
+//	.ovr          (tg68_ovr         ), 
+	.bootrom      (bootrom          ),
 	.ramaddr      (tg68_cad         ),
+	.ramcs        (tg68_ramcs       ),
 	.nResetOut    (tg68_nrst_out    ),
-	.cpuDMA       (tg68_cdma        ),
 	.ramlds       (tg68_clds        ),
 	.ramuds       (tg68_cuds        ),
+ 
 
 	//custom CPU signals
 	.cpustate     (tg68_cpustate    ),
@@ -267,19 +275,21 @@ TG68K tg68k
 	.VBR_out      (tg68_VBR_out     )
 );
 
-sdram_ctrl sdram
+wire [ 16-1:0] tg68_cout1;
+wire           tg68_cpuena1;
+sdram_ctrl ram1
 (
-	.sysclk       (clk_114          ),
+	.sysclk       (clk_86           ),
 	.reset_in     (pll_locked       ),
 	.c_7m         (clk_7            ),
-	.reset_out    (rst_out          ),
+	.reset_out    (                 ),
 
 	.cache_rst    (tg68_rst         ),
 	.cache_inhibit(cache_inhibit    ),
-	.cpu_cache_ctrl (tg68_CACR_out  ),
+	.cpu_cache_ctrl(tg68_CACR_out   ),
 
 	.sdata        (SDRAM_DQ         ),
-	.sdaddr       (SDRAM_A[12:0]    ),
+	.sdaddr       (SDRAM_A          ),
 	.dqm          ({SDRAM_DQMH, SDRAM_DQML}),
 	.sd_cs        (SDRAM_nCS        ),
 	.ba           (SDRAM_BA         ),
@@ -288,19 +298,19 @@ sdram_ctrl sdram
 	.sd_cas       (SDRAM_nCAS       ),
 
 	.cpuWR        (tg68_dat_out     ),
-	.cpuAddr      (tg68_cad[24:1]   ),
+	.cpuAddr      (tg68_cad[25:1]   ),
 	.cpuU         (tg68_cuds        ),
 	.cpuL         (tg68_clds        ),
 	.cpustate     (tg68_cpustate    ),
-	.cpu_dma      (tg68_cdma        ),
-	.cpuRD        (tg68_cout        ),
-	.cpuena       (tg68_cpuena      ),
+	.cpuCS        (SDR_EN & tg68_ramcs ),
+	.cpuRD        (tg68_cout1       ),
+	.cpuena       (tg68_cpuena1     ),
 	.enaWRreg     (tg68_enaWR       ),
 	.ena7RDreg    (tg68_ena7RD      ),
 	.ena7WRreg    (tg68_ena7WR      ),
 
 	.chipWR       (ram_data         ),
-	.chipAddr     ({2'b00, ram_address[21:1]}),
+	.chipAddr     (ram_address      ),
 	.chipU        (_ram_bhe         ),
 	.chipL        (_ram_ble         ),
 	.chipRW       (_ram_we          ),
@@ -308,6 +318,41 @@ sdram_ctrl sdram
 	.chipRD       (ramdata_in       ),
 	.chip48       (chip48           )
 );
+
+wire [ 16-1:0] tg68_cout2;
+wire           tg68_cpuena2;
+ddram_ctrl ram2
+(
+	.sysclk       (clk_86           ),
+	.reset_in     (pll_locked       ),
+
+	.cache_rst    (tg68_rst         ),
+	.cache_inhibit(cache_inhibit    ),
+	.cpu_cache_ctrl(tg68_CACR_out   ),
+
+	.DDRAM_CLK    (DDRAM_CLK        ),
+	.DDRAM_BUSY   (DDRAM_BUSY       ),
+	.DDRAM_BURSTCNT(DDRAM_BURSTCNT  ),
+	.DDRAM_ADDR   (DDRAM_ADDR       ),
+	.DDRAM_DOUT   (DDRAM_DOUT       ),
+	.DDRAM_DOUT_READY(DDRAM_DOUT_READY),
+	.DDRAM_RD     (DDRAM_RD         ),
+	.DDRAM_DIN    (DDRAM_DIN        ),
+	.DDRAM_BE     (DDRAM_BE         ),
+	.DDRAM_WE     (DDRAM_WE         ),
+
+	.cpuWR        (tg68_dat_out     ),
+	.cpuAddr      (tg68_cad[27:1]   ),
+	.cpuU         (tg68_cuds        ),
+	.cpuL         (tg68_clds        ),
+	.cpustate     (tg68_cpustate    ),
+	.cpuCS        (DDR_EN & tg68_ramcs ),
+	.cpuRD        (tg68_cout2       ),
+	.cpuena       (tg68_cpuena2     )
+);
+
+assign tg68_cout   = DDR_EN ? tg68_cout2   : tg68_cout1;
+assign tg68_cpuena = DDR_EN ? tg68_cpuena2 : tg68_cpuena1;
 
 assign IO_DOUT = IO_UIO ? uio_dout : fpga_dout;
 
@@ -367,12 +412,12 @@ minimig minimig
 	._cpu_reset   (tg68_rst         ), // M68K reset
 	._cpu_reset_in(tg68_nrst_out    ), // M68K reset out
 	.cpu_vbr      (tg68_VBR_out     ), // M68K VBR
-	.ovr          (tg68_ovr         ), // NMI override address decoding
+//	.ovr          (tg68_ovr         ), // NMI override address decoding
 
 	//sram pins
 	.ram_data     (ram_data         ), // SRAM data bus
 	.ramdata_in   (ramdata_in       ), // SRAM data bus in
-	.ram_address  (ram_address[21:1]), // SRAM address bus
+	.ram_address  (ram_address[23:1]), // SRAM address bus
 	._ram_bhe     (_ram_bhe         ), // SRAM upper byte select
 	._ram_ble     (_ram_ble         ), // SRAM lower byte select
 	._ram_we      (_ram_we          ), // SRAM write enable
@@ -447,6 +492,7 @@ minimig minimig
 	.memcfg       (memcfg           ), // memory config
 	.turbochipram (turbochipram     ), // turbo chipRAM
 	.turbokick    (turbokick        ), // turbo kickstart
+	.bootrom      (bootrom          ), // bootrom mode. Needed here to tell tg68k to also mirror the 256k Kickstart 
 
 	.trackdisp    (                 ), // floppy track number
 	.secdisp      (                 ), // sector

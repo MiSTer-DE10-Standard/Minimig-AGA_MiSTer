@@ -26,49 +26,50 @@
 
 
 module userio (
-	input                clk,                // bus clock
-	input                reset,              // reset
-	input                clk7_en,
+	input 		     clk, // bus clock
+	input 		     reset, // reset
+	input 		     clk7_en,
 
-	input      [  9-1:1] reg_address_in,     // register adress inputs
-	input      [ 16-1:0] data_in,            // bus data in
-	output reg [ 16-1:0] data_out,           // bus data out
-	output               _fire0,             // joystick 0 fire output (to CIA)
-	output               _fire1,             // joystick 1 fire output (to CIA)
-	input                _fire0_dat,
-	input                _fire1_dat,
-	input      [   15:0] _joy1,              // joystick 1 in (default mouse port)
-	input      [   15:0] _joy2,              // joystick 2 in (default joystick port)
-	input      [  3-1:0] mouse_btn,
-	input                kbd_mouse_strobe,
-	input                kms_level,
-	input      [  2-1:0] kbd_mouse_type,
-	input      [  8-1:0] kbd_mouse_data,
-	output reg           keyboard_disabled,  // disables Amiga keyboard while OSD is active
-	input                IO_ENA,
-	input                IO_STROBE,
-	output reg           IO_WAIT,
-	input         [15:0] IO_DIN,
-	output reg    [15:0] IO_DOUT,
-	output reg [  7-1:0] memory_config,
-	output reg [  5-1:0] chipset_config,
-	output reg [  4-1:0] floppy_config,
-	output reg [  2-1:0] scanline,
-	output reg [  2-1:0] ar,
-	output reg [  2-1:0] blver,
-	output reg [  5-1:0] ide_config,
-	output reg [  4-1:0] cpu_config,
-	output reg           usrrst,             // user reset from osd module
-	output reg           cpurst,
-	output reg           cpuhlt,
+	input [ 9-1:1] 	     reg_address_in, // register adress inputs
+	input [ 16-1:0]      data_in, // bus data in
+	output reg [ 16-1:0] data_out, // bus data out
+	output 		     _fire0, // joystick 0 fire output (to CIA)
+	output 		     _fire1, // joystick 1 fire output (to CIA)
+	input 		     _fire0_dat,
+	input 		     _fire1_dat,
+	input [ 15:0] 	     _joy1, // joystick 1 in (default mouse port)
+	input [ 15:0] 	     _joy2, // joystick 2 in (default joystick port)
+	input [ 3-1:0] 	     mouse_btn,
+	input 		     kbd_mouse_strobe,
+	input 		     kms_level,
+	input [ 2-1:0] 	     kbd_mouse_type,
+	input [ 8-1:0] 	     kbd_mouse_data,
+	output reg 	     keyboard_disabled, // disables Amiga keyboard while OSD is active
+	input 		     IO_ENA,
+	input 		     IO_STROBE,
+	output reg 	     IO_WAIT,
+	input [15:0] 	     IO_DIN,
+	output reg [15:0]    IO_DOUT,
+	output reg [ 8-1:0]  memory_config,
+	output reg [ 5-1:0]  chipset_config,
+	output reg [ 4-1:0]  floppy_config,
+	output reg [ 2-1:0]  scanline,
+	output reg [ 2-1:0]  ar,
+	output reg [ 2-1:0]  blver,
+	output reg [ 5-1:0]  ide_config,
+	output reg [ 4-1:0]  cpu_config,
+	output reg           bootrom =0, // do the A1000 bootrom magic in gary.v
+	output reg 	     usrrst, // user reset from osd module
+	output reg 	     cpurst,
+	output reg 	     cpuhlt,
 	// host
-	output reg           host_cs,
+	output reg 	     host_cs,
 	output reg [ 24-1:0] host_adr,
-	output reg           host_we,
-	output     [  2-1:0] host_bs,
+	output reg 	     host_we,
+	output [ 2-1:0]      host_bs,
 	output reg [ 16-1:0] host_wdat,
-	input      [ 16-1:0] host_rdat,
-	input                host_ack
+	input [ 16-1:0]      host_rdat,
+	input 		     host_ack
 );
 
 
@@ -363,7 +364,7 @@ assign _mthird = ~mouse_btn[2];
 
 assign host_bs = 2'b11;
 
-reg [6:0] t_memory_config = 7'b0_00_01_01;
+reg [7:0] t_memory_config = 8'b0_0_00_01_01;
 reg [4:0] t_ide_config = 0;
 reg [3:0] t_cpu_config = 0;
 reg [4:0] t_chipset_config = 0;
@@ -376,6 +377,7 @@ always @(posedge clk) begin
 			ide_config <= t_ide_config;
 			cpu_config[1:0] <= t_cpu_config[1:0];
 			memory_config[5:0] <= t_memory_config[5:0];
+			memory_config[7] <= t_memory_config[7];
 		end
 	end
 end
@@ -410,9 +412,9 @@ always @(posedge clk) begin
 	reg       btoggle;
 	reg       old_ack;
 	reg [2:0] bcnt;
-	
+
 	old_ack <= host_ack;
-   if (old_ack & ~host_ack) begin
+        if (old_ack & ~host_ack) begin
 		IO_WAIT  <= 0;
 		host_adr <= host_adr + 24'd2;
 	end
@@ -447,7 +449,7 @@ always @(posedge clk) begin
 				if (osd_ctrl_sel)     keyboard_disabled <= IO_DIN[1];
 				if (chip_cfg_sel)     t_chipset_config <= IO_DIN[4:0];
 				if (cpu_cfg_sel)      t_cpu_config <= IO_DIN[3:0];
-				if (memory_cfg_sel)   t_memory_config <= IO_DIN[6:0];
+				if (memory_cfg_sel)   t_memory_config <= IO_DIN[7:0];
 				if (video_cfg_sel)    {blver, ar, scanline} <= {IO_DIN[11:8],IO_DIN[1:0]};
 				if (floppy_cfg_sel)   floppy_config <= IO_DIN[3:0];
 				if (harddisk_cfg_sel) t_ide_config <= IO_DIN[4:0];
@@ -463,6 +465,9 @@ always @(posedge clk) begin
 				endcase
 
 				if(bcnt[2]) begin
+				      // If OSD writes to $f80000, it could be a bootrom. When a Kickstart is loaded, $fe0000 is also written.
+				   if (host_adr == 24'hF80000) bootrom <= 1; 
+				   if (host_adr == 24'hFE0000) bootrom <= 0;  
 					btoggle <= ~btoggle;
 					if(btoggle) begin
 						host_wdat[7:0] <= IO_DIN[7:0];
