@@ -200,7 +200,6 @@ module minimig
 	input  [15:0] _joy3,       // joystick 3 [fire2,fire,up,down,left,right]
 	input  [15:0] _joy4,       // joystick 4 [fire2,fire,up,down,left,right]
 	input   [2:0] mouse_btn,   // mouse buttons
-	input 	     kbd_mouse_strobe,
 	input 	     kms_level,
 	input   [1:0] kbd_mouse_type,
 	input   [7:0] kbd_mouse_data,
@@ -210,7 +209,7 @@ module minimig
 	input  [63:0] rtc,
 
 	//host controller interface (SPI)
-	input 	     IO_OSD,
+	input 	     IO_UIO,
 	input 	     IO_FPGA,
 	input 	     IO_STROBE,
 	output 	     IO_WAIT,
@@ -235,6 +234,7 @@ module minimig
 	//audio
 	output [14:0] ldata,       // left DAC data
 	output [14:0] rdata,       // right DAC data
+	output  [1:0] aud_mix,
 
 	//user i/o
 	output  [3:0] cpu_config,
@@ -352,9 +352,9 @@ wire        hbl, hde;
 assign      hblank = blver ? ~hde : hbl;
 
 wire        IO_WAIT_PAULA, IO_WAIT_OSD;
-wire [15:0] IO_DOUT_PAULA, IO_DOUT_OSD;
+wire [15:0] IO_DOUT_PAULA;
 
-assign      IO_DOUT = IO_DOUT_PAULA | IO_DOUT_OSD;
+assign      IO_DOUT = IO_DOUT_PAULA;
 assign      IO_WAIT = IO_WAIT_PAULA | IO_WAIT_OSD;
 
 //--------------------------------------------------------------------------------------
@@ -397,8 +397,6 @@ wire        hdd_data_rd;		//data port read strobe
 
 wire	[7:0] bank;					//memory bank select
 
-wire        keyboard_disabled;//disables Amiga keyboard while OSD is active
-
 reg         ntsc = NTSC;		//PAL/NTSC video mode selection
 
 // host interface
@@ -419,17 +417,15 @@ assign      reset = sys_reset  | ~_cpu_reset_in; // both tg68k and minimig_sysco
 //--------------------------------------------------------------------------------------
 
 // power led control
-reg [3:0] led_cnt;
+reg [5:0] led_cnt;
 reg led_dim;
 
 always @ (posedge clk) begin
-  if (_hsync) begin
-    led_cnt <= led_cnt + 1'd1;
-    led_dim <= |led_cnt;
-  end
+  led_cnt <= led_cnt + 1'd1;
+  led_dim <= |led_cnt[5:2];
 end
 
-   assign pwr_led = ~(_led & led_dim);
+assign pwr_led = ~(_led & led_dim);
 
 assign memcfg = {memory_config[7],memory_config[5:0]};
 
@@ -574,15 +570,13 @@ userio USERIO1
 	._joy2(_joy2),
 	.mouse_btn(mouse_btn),
 	.kbd_mouse_type(kbd_mouse_type),
-	.kbd_mouse_strobe(kbd_mouse_strobe),
 	.kms_level(kms_level),
 	.kbd_mouse_data(kbd_mouse_data), 
-	.keyboard_disabled(keyboard_disabled),
-	.IO_ENA(IO_OSD),
+	.aud_mix(aud_mix),
+	.IO_ENA(IO_UIO),
 	.IO_STROBE(IO_STROBE),
 	.IO_WAIT(IO_WAIT_OSD),
 	.IO_DIN(IO_DIN),
-	.IO_DOUT(IO_DOUT_OSD),
 	.memory_config(memory_config),
 	.chipset_config(chipset_config),
 	.floppy_config(floppy_config),
@@ -607,9 +601,7 @@ userio USERIO1
 //assign cpu_speed = (chipset_config[0] & ~int7 & ~freeze & ~ovr);
 assign cpu_speed = 1'b0;
 
-reg [1:0] phase;
-always @(posedge clk) phase <= {phase[0], clk7_en};
-assign ce_pix = (shres & |chipset_config[4:3]) | (hires & phase[1]) | clk7_en;
+assign ce_pix = (shres & |chipset_config[4:3]) | (hires & clk7n_en) | clk7_en;
 
 assign res = {shres & |chipset_config[4:3], hires};
 
@@ -660,10 +652,8 @@ ciaa CIAA1
 	.porta_out({_fire1_dat,_fire0_dat,_led,ovl}),
 	.portb_in({_joy4[0],_joy4[1],_joy4[2],_joy4[3],_joy3[0],_joy3[1],_joy3[2],_joy3[3]}),
 	.kbd_mouse_type(kbd_mouse_type),
-	.kbd_mouse_strobe(kbd_mouse_strobe),
 	.kms_level(kms_level),
 	.kbd_mouse_data(kbd_mouse_data), 
-	.keyboard_disabled(keyboard_disabled),
 	.freeze(freeze),
 	.hrtmon_en (memory_config[6])
 );

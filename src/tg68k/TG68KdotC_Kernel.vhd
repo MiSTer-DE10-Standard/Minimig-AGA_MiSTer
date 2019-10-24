@@ -25,8 +25,7 @@
 
 -- to do 68010:
 -- (MOVEC)
--- BKPT
--- RTD
+-- BKPT (with debug hardware attached)
 -- MOVES
 --
 -- to do 68020:
@@ -48,6 +47,7 @@
 -- LINK long
 -- MULS.L, MULU.L
 -- extb.l
+-- RTD
 
 library ieee;
 use ieee.std_logic_1164.ALL;
@@ -126,6 +126,9 @@ architecture logic of TG68KdotC_Kernel is
 
   type regfile_t is ARRAY(0 TO 15) OF std_logic_vector(31 downto 0);
   signal regfile                : regfile_t := (OTHERS => (OTHERS => '0')); -- mikej stops sim X issues;
+  attribute ramstyle            : string;
+  attribute ramstyle of regfile : signal is "logic";
+
   signal RDindex_A              : integer range 0 TO 15;
   signal RDindex_B              : integer range 0 TO 15;
 
@@ -529,11 +532,15 @@ begin
 	elsif set(briefext) = '1' then
 	  rf_dest_addr <= brief(15 downto 12);
 	elsif set(get_bfoffset) = '1' then
-	  rf_dest_addr <= sndOPC(9 downto 6);
+	  if opcode(15 downto 12) = "1110" then
+		rf_dest_addr <= '0' & sndOPC(8 downto 6);
+	  else
+		rf_dest_addr <= sndOPC(9 downto 6);
+	  end if;
 	elsif dest_2ndHbits = '1' then
-	  rf_dest_addr <= sndOPC(15 downto 12);
+	  rf_dest_addr <= '0' & sndOPC(14 downto 12);
 	elsif set(write_reminder) = '1' then
-	  rf_dest_addr <= sndOPC(3 downto 0);
+	  rf_dest_addr <= '0' & sndOPC(2 downto 0);
 	elsif setstackaddr = '1' then
 	  rf_dest_addr <= "1111";
 	elsif dest_hbits = '1' then
@@ -559,9 +566,9 @@ begin
 		rf_source_addr <= movem_regaddr;
 	  end if;
 	elsif source_2ndLbits = '1' then
-	  rf_source_addr <= sndOPC(3 downto 0);
+	  rf_source_addr <= '0' & sndOPC(2 downto 0);
 	elsif source_2ndHbits = '1' then
-	  rf_source_addr <= sndOPC(15 downto 12);
+	  rf_source_addr <= '0' & sndOPC(14 downto 12);
 	elsif source_lowbits = '1' then
 	  rf_source_addr <= source_areg & opcode(2 downto 0);
 	elsif exec(linksp) = '1' then
@@ -644,7 +651,7 @@ begin
 
 		if state = "11" then
 		  exec_write_back <= '0';
-		elsif setstate = "10" and write_back = '1' then
+		elsif setstate = "10" and write_back = '1' and next_micro_state = idle then
 		  exec_write_back <= '1';
 		end if;
 
@@ -696,7 +703,7 @@ begin
 		elsif micro_state = trap0 then
 		  -- this is only active for 010+ since in 000 writePC is
 		  -- true in state trap0
-		  if trap_trace='1' then
+		  if trap_trace='1' or set_exec(opcTRAPV) = '1' then
 			-- stack frame format #2
 			data_write_tmp(15 downto 0) <= "0010" & trap_vector(11 downto 0); --TH
 		  else
@@ -1269,7 +1276,7 @@ PROCESS (clk, IPL, setstate, state, exec_write_back, set_direct_data, next_micro
 		end if;
 		-- if exec(to_CCR)='1' and exec(to_SR)='1' then
 		if exec(to_SR) = '1' then
-		  FlagsSR(7 downto 0) <= SRin; --SR
+		  FlagsSR(7 downto 0) <= SRin and x"f7"; -- write back SR and mask out the unused bit
 		  FC(2) <= SRin(5);
 		  -- end if;
 		elsif exec(update_FC) = '1' then
@@ -1286,10 +1293,10 @@ PROCESS (clk, IPL, setstate, state, exec_write_back, set_direct_data, next_micro
   -- decode opcode
   -----------------------------------------------------------------------------
   process(clk, cpu, OP1out, OP2out, opcode, exe_condition, nextpass, micro_state, decodeOPC, state, setexecOPC, Flags, FlagsSR, direct_data, build_logical,
-	build_bcd, set_Z_error, trapd, movem_run, last_data_read, set, set_V_Flag, z_error, trap_trace, trap_interrupt,
+	build_bcd, set_Z_error, trapd, movem_run, last_data_in, last_data_read, set, set_V_Flag, z_error, trap_trace, trap_interrupt,
 	SVmode, preSVmode, stop, long_done, ea_only, setstate, execOPC, exec_write_back, exe_datatype,
-	datatype, interrupt, c_out, trapmake, rot_cnt, brief, addr, last_data_in,
-	long_start, set_datatype, sndOPC, set_exec, exec, ea_build_now, reg_QA, reg_QB, make_berr, trap_berr)
+	datatype, interrupt, c_out, trapmake, rot_cnt, brief, addr,
+	long_start, set_datatype, sndOPC, set_exec, exec, ea_build_now, reg_QA, reg_QB, make_berr, trap_berr, trap_trapv)
   begin
 	TG68_PC_brw        <= '0';
 	setstate           <= "00";
@@ -1361,7 +1368,11 @@ PROCESS (clk, IPL, setstate, state, exec_write_back, set_direct_data, next_micro
 	end case;
 
 	if trapmake = '1' and trapd = '0' then
-	  next_micro_state <= trap0;
+	  if trap_trapv = '1' and (VBR_Stackframe = 1 or (cpu(0) = '1' and VBR_Stackframe = 2)) then
+		next_micro_state <= trap00;
+	  else
+		next_micro_state <= trap0;
+	  end if;
 	  if VBR_Stackframe = 0 or (cpu(0) = '0' and VBR_Stackframe = 2) then
 		set(writePC_add) <= '1';
 		-- set_datatype <= "10";
@@ -1936,8 +1947,9 @@ PROCESS (clk, IPL, setstate, state, exec_write_back, set_direct_data, next_micro
 					if opcode(5 downto 3) = "000" then --swap
 					  set_exec(opcSWAP) <= '1';
 					  set_exec(Regwrena) <= '1';
-					elsif opcode(5 downto 3) = "001" then --bkpt
-
+					elsif opcode(5 downto 3) = "001" then --bkpt (TODO: behavior with debug HW attached)
+					  trap_illegal <= '1';
+					  trapmake <= '1';
 					else --pea
 					  ea_only <= '1';
 					  ea_build_now <= '1';
@@ -2137,7 +2149,6 @@ PROCESS (clk, IPL, setstate, state, exec_write_back, set_direct_data, next_micro
 					  if stop = '1' then
 						skipFetch <= '1';
 					  end if;
-
 					end if;
 
 				  when "1110011" | "1110111" => --rte/rtr
@@ -2148,14 +2159,34 @@ PROCESS (clk, IPL, setstate, state, exec_write_back, set_direct_data, next_micro
 						setstackaddr <= '1';
 						if opcode(2) = '1' then
 						  set(directCCR) <= '1';
+						  next_micro_state <= rtr1;
 						else
 						  set(directSR) <= '1';
+						  next_micro_state <= rte1;
 						end if;
-						next_micro_state <= rte1;
 					  end if;
 					else
 					  trap_priv <= '1';
 					  trapmake <= '1';
+					end if;
+
+				  when "1110100" => --rtd
+					if VBR_Stackframe = 0 or (cpu(0) = '0' and VBR_Stackframe = 2) then
+					  trap_illegal <= '1';
+					  trapmake <= '1';
+					else
+					  datatype <= "10";
+					  set_exec(opcADD) <= '1'; --for displacement
+					  set_exec(Regwrena) <= '1';
+					  set(no_Flags) <= '1';
+					  if decodeOPC = '1' then
+						setstate <= "10";
+						set(postadd) <= '1';
+						setstackaddr <= '1';
+						set(direct_delta) <= '1';
+						set(directPC) <= '1';
+						next_micro_state <= rtd1;
+					  end if;
 					end if;
 
 				  when "1110101" => --rts
@@ -2170,6 +2201,7 @@ PROCESS (clk, IPL, setstate, state, exec_write_back, set_direct_data, next_micro
 					end if;
 
 				  when "1110110" => --trapv
+					set_exec(opcTRAPV) <= '1';
 					if decodeOPC = '1' then
 					  setstate <= "01";
 					end if;
@@ -2363,6 +2395,9 @@ PROCESS (clk, IPL, setstate, state, exec_write_back, set_direct_data, next_micro
 				setstate <= "10";
 				set(update_ld) <= '1';
 				set(presub) <= '1';
+				if opcode(2 downto 0) = "111" then
+				  set(use_SP) <= '1';
+				end if;
 				next_micro_state <= pack1;
 				dest_areg <= '1'; --???
 			  end if;
@@ -2436,6 +2471,9 @@ PROCESS (clk, IPL, setstate, state, exec_write_back, set_direct_data, next_micro
 				setstate <= "10";
 				set(update_ld) <= '1';
 				set(postadd) <= '1';
+				if opcode(2 downto 0) = "111" then
+				  set(use_SP) <= '1';
+				end if;
 				next_micro_state <= cmpm;
 			  end if;
 			  set_exec(ea_data_OP1) <= '1';
@@ -2630,7 +2668,7 @@ PROCESS (clk, IPL, setstate, state, exec_write_back, set_direct_data, next_micro
 	  end if;
 	end if;
 
-	-- use for ABCD, SBCD
+	-- use for ABCD, SBCD, ADDX, SUBX
 	if build_bcd = '1' then
 	  set_exec(use_XZFlag) <= '1';
 	  set_exec(ea_data_OP1) <= '1';
@@ -2641,6 +2679,9 @@ PROCESS (clk, IPL, setstate, state, exec_write_back, set_direct_data, next_micro
 		  setstate <= "10";
 		  set(update_ld) <= '1';
 		  set(presub) <= '1';
+		  if opcode(2 downto 0) = "111" then
+			set(use_SP) <= '1';
+		  end if;
 		  next_micro_state <= op_AxAy;
 		  dest_areg <= '1'; --???
 		end if;
@@ -2932,6 +2973,9 @@ PROCESS (clk, IPL, setstate, state, exec_write_back, set_direct_data, next_micro
 	  when op_AxAy => -- op -(Ax),-(Ay)
 		set_direct_data <= '1';
 		set(presub) <= '1';
+		if opcode(11 downto 9) = "111" then
+		  set(use_SP) <= '1';
+		end if;
 		dest_hbits <= '1';
 		dest_areg <= '1';
 		setstate <= "10";
@@ -2939,6 +2983,9 @@ PROCESS (clk, IPL, setstate, state, exec_write_back, set_direct_data, next_micro
 	  when cmpm => -- cmpm (Ay)+,(Ax)+
 		set_direct_data <= '1';
 		set(postadd) <= '1';
+		if opcode(11 downto 9) = "111" then
+		  set(use_SP) <= '1';
+		end if;
 		dest_hbits <= '1';
 		dest_areg <= '1';
 		setstate <= "10";
@@ -3041,6 +3088,15 @@ PROCESS (clk, IPL, setstate, state, exec_write_back, set_direct_data, next_micro
 		writeSR <= '1';
 		next_micro_state <= trap3;
 
+	  when rtr1 => -- RTR
+		datatype <= "10";
+		setstate <= "10";
+		set(postadd) <= '1';
+		setstackaddr <= '1';
+		set(direct_delta) <= '1';
+		set(directPC) <= '1';
+		next_micro_state <= nopnop;
+
 										-- return from exception - RTE
 										-- fetch PC and status register from stack
 										-- 010+ fetches another word containing
@@ -3091,6 +3147,15 @@ PROCESS (clk, IPL, setstate, state, exec_write_back, set_direct_data, next_micro
 										end if;
 					WHEN rte5 =>            -- RTE
 					next_micro_state <= nop;
+
+	  when rtd1 => -- RTD
+		set(store_ea_data) <= '1';
+		next_micro_state <= rtd2;
+
+	  when rtd2 => -- RTD
+		setstackaddr <= '1';
+		set(ea_data_OP2) <= '1';
+
 	  when movec1 => -- MOVEC
 		set(briefext) <= '1';
 		set_writePCbig <= '1';
@@ -3265,6 +3330,9 @@ PROCESS (clk, IPL, setstate, state, exec_write_back, set_direct_data, next_micro
 		  datatype <= "00";
 		end if;
 		set(presub) <= '1';
+		if opcode(11 downto 9) = "111" then
+		  set(use_SP) <= '1';
+		end if;
 		setstate <= "11";
 		dest_hbits <= '1';
 		dest_areg <= '1';
